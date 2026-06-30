@@ -1,0 +1,33 @@
+import fs from "node:fs/promises";
+
+const raw = JSON.parse(
+  await fs.readFile("index_constituents_raw.json", "utf8")
+);
+
+if (!raw.Success || raw.ErrCode !== 0) {
+  throw new Error(`东方财富接口返回失败：${raw.ErrMsg}`);
+}
+
+if (raw.Datas.length !== 1000) {
+  throw new Error(`成分股数量异常：${raw.Datas.length}`);
+}
+
+const constituents = raw.Datas.map((item, index) => ({
+  序号: index + 1,
+  指数代码: item.IndexCode,
+  指数名称: item.IndexName,
+  股票代码: item.StockCode,
+  股票简称: item.StockName,
+  交易所:
+    item.StockTEXCH === "1"
+      ? "上海证券交易所"
+      : "深圳证券交易所",
+  市场: item.StockTEXCH === "1" ? "SH" : "SZ",
+  东方财富secid: `${item.StockTEXCH}.${item.StockCode}`,
+  指数权重: Number(item.MARKETCAPPCT) / 100,
+  成分股口径日期: "2026-06-25",
+  数据抓取日期: "2026-06-30",
+}));
+
+console.log(`成分股数量：${constituents.length}`);
+console.log(constituents.slice(0, 5));
