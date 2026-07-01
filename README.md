@@ -31,7 +31,7 @@ practice/
 - `Structured data table/tmp/`：PDF 与文本缓存、解析失败记录；
 - `Data profiling report/cache/`：行业查询缓存。
 
-成分股输入表、结构化结果和报告属于数据产物，位于“中证1000股抓取”文件夹中。当前交付文件分别命名为 `数据源1000股.xlsx` 和 `摘取后.xlsx`；代码重新运行时默认生成 CSV，便于满足结构化数据交付和跨平台读取要求。
+成分股输入表、结构化结果和报告属于数据产物，位于“中证1000股抓取”文件夹中。当前交付文件分别命名为 `数据源1000股.xlsx` 和 `结构化数据表.csv`。
 
 ## 环境与 requirements
 
@@ -79,18 +79,18 @@ python ".\data acquisition\fetch_reduction_notices.py" `
 ```powershell
 python ".\Structured data table\parse_reduction_announcements.py" `
   --candidates ".\data acquisition\output\reduction_notice_candidates.csv" `
-  --output "..\structured_reduction_announcements.csv" `
+  --output "..\结构化数据表.csv" `
   --cache ".\Structured data table\tmp\pdfs" `
   --failures ".\Structured data table\tmp\parse_failures.json"
 ```
 
-核心字段包括：股票代码、简称、公告日期、减持股东、股东类型、减持股数、占总股本比例、减持期间、减持原因和公告原文链接。未披露或不能可靠确认的字段保留为空，不自动猜测。当前交付的 `摘取后.xlsx` 是同一结构化结果的 Excel 版本。
+核心字段包括：股票代码、简称、公告日期、减持股东、股东类型、减持股数、占总股本比例、减持期间、减持原因和公告原文链接。未披露或不能可靠确认的字段保留为空，不自动猜测。
 
 ### 3. 生成数据画像报告
 
 ```powershell
 python ".\Data profiling report\generate_report.py" `
-  --structured "..\structured_reduction_announcements.csv" `
+  --structured "..\结构化数据表.csv" `
   --notices-db ".\data acquisition\output\notices.sqlite3" `
   --text-cache ".\Structured data table\tmp\pdfs" `
   --industry-cache ".\Data profiling report\cache\industries.json" `
