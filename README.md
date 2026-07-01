@@ -31,7 +31,7 @@ practice/
 - `Structured data table/tmp/`：PDF 与文本缓存、解析失败记录；
 - `Data profiling report/cache/`：行业查询缓存。
 
-成分股输入表和最终 CSV、报告属于数据产物，位于《中证1000股抓取》文件夹中。
+成分股输入表、结构化结果和报告属于数据产物，位于“中证1000股抓取”文件夹中。当前交付文件分别命名为 `数据源1000股.xlsx` 和 `摘取后.xlsx`；代码重新运行时默认生成 CSV，便于满足结构化数据交付和跨平台读取要求。
 
 ## 环境与 requirements
 
@@ -51,10 +51,10 @@ python -m pip install -r requirements.txt
 
 ## 输入数据
 
-抓取模块需要 `index_constituents.xlsx`，至少包含股票代码和简称。该文件为 2026-06-25 时点的中证1000成分股表，共 1000 只股票。示例路径：
+抓取模块需要 `数据源1000股.xlsx`，至少包含股票代码和简称。该文件为 2026-06-25 时点的中证1000成分股表，共 1000 只股票。若项目代码解压在“中证1000股抓取”文件夹内，输入路径为：
 
 ```text
-..\..\outputs\index_constituents.xlsx
+..\数据源1000股.xlsx
 ```
 
 ## 如何运行
@@ -65,7 +65,7 @@ python -m pip install -r requirements.txt
 
 ```powershell
 python ".\data acquisition\fetch_reduction_notices.py" `
-  --constituents "..\..\outputs\index_constituents.xlsx" `
+  --constituents "..\数据源1000股.xlsx" `
   --start 2026-03-26 `
   --end 2026-06-25 `
   --db ".\data acquisition\output\notices.sqlite3" `
@@ -79,22 +79,22 @@ python ".\data acquisition\fetch_reduction_notices.py" `
 ```powershell
 python ".\Structured data table\parse_reduction_announcements.py" `
   --candidates ".\data acquisition\output\reduction_notice_candidates.csv" `
-  --output "..\..\outputs\structured_reduction_announcements.csv" `
+  --output "..\structured_reduction_announcements.csv" `
   --cache ".\Structured data table\tmp\pdfs" `
   --failures ".\Structured data table\tmp\parse_failures.json"
 ```
 
-核心字段包括：股票代码、简称、公告日期、减持股东、股东类型、减持股数、减持股数口径、占总股本比例、减持期间、期间口径、减持原因和公告原文链接。未披露或不能可靠确认的字段保留为空，不自动猜测。
+核心字段包括：股票代码、简称、公告日期、减持股东、股东类型、减持股数、占总股本比例、减持期间、减持原因和公告原文链接。未披露或不能可靠确认的字段保留为空，不自动猜测。当前交付的 `摘取后.xlsx` 是同一结构化结果的 Excel 版本。
 
 ### 3. 生成数据画像报告
 
 ```powershell
 python ".\Data profiling report\generate_report.py" `
-  --structured "..\..\outputs\structured_reduction_announcements.csv" `
+  --structured "..\structured_reduction_announcements.csv" `
   --notices-db ".\data acquisition\output\notices.sqlite3" `
   --text-cache ".\Structured data table\tmp\pdfs" `
   --industry-cache ".\Data profiling report\cache\industries.json" `
-  --output "..\..\outputs\report.md"
+  --output "..\report.md"
 ```
 
 报告包含抓取总量、月度分布、公告明确披露的减持金额 Top 20、东方财富行业分布和数据现象。金额不使用收盘价替代实际成交金额。
