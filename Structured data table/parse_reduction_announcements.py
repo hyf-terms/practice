@@ -21,7 +21,7 @@ from pypdf import PdfReader
 PDF_URL = "https://pdf.dfcfw.com/pdf/H2_{art_code}_1.pdf"
 FIELDS = [
     "股票代码", "简称", "公告日期", "减持股东", "股东类型", "减持股数",
-    "占总股本比例", "减持期间", "减持原因", "公告原文链接",
+    "减持股数口径", "占总股本比例", "减持期间", "期间口径", "减持原因", "公告原文链接",
     "公告标题", "公告类型", "公告编号", "PDF链接", "解析置信度", "解析说明",
 ]
 
@@ -34,8 +34,10 @@ class ParsedRow:
     减持股东: str
     股东类型: str
     减持股数: int | None
+    减持股数口径: str
     占总股本比例: float | None
     减持期间: str
+    期间口径: str
     减持原因: str
     公告原文链接: str
     公告标题: str
@@ -62,6 +64,13 @@ def parse_date(text: str) -> str:
 
 def to_int(value: str) -> int:
     return int(value.replace(",", "").replace("，", ""))
+
+
+def to_shares(value: str, unit: str) -> int:
+    """将股、万股、亿股统一换算为股。"""
+    number = float(value.replace(",", "").replace("，", ""))
+    factor = {"股": 1, "万股": 10_000, "亿股": 100_000_000}[unit]
+    return round(number * factor)
 
 
 def event_type(title: str) -> str:
@@ -148,14 +157,14 @@ def holder_type(text: str) -> str:
 def reduction_shares(text: str, kind: str) -> int | None:
     c = flat(text)
     actual_patterns = [
-        r"累计减持(?:公司)?股份\s*([\d,，]+)\s*股",
-        r"累计减持[^。]{0,120}?共计\s*([\d,，]+)\s*股",
-        r"合计减持(?:公司)?股份?\s*([\d,，]+)\s*股",
-        r"减持数量\s*([\d,，]+)\s*股",
-        r"本次(?:权益变动|减持)[^。]{0,100}?减持\s*([\d,，]+)\s*股",
+        r"累计减持(?:公司)?股份\s*([\d,，]+(?:\.\d+)?)\s*(亿股|万股|股)",
+        r"累计减持[^。]{0,120}?共计\s*([\d,，]+(?:\.\d+)?)\s*(亿股|万股|股)",
+        r"合计减持(?:公司)?股份?\s*([\d,，]+(?:\.\d+)?)\s*(亿股|万股|股)",
+        r"减持数量\s*([\d,，]+(?:\.\d+)?)\s*(亿股|万股|股)",
+        r"本次(?:权益变动|减持)[^。]{0,100}?减持\s*([\d,，]+(?:\.\d+)?)\s*(亿股|万股|股)",
     ]
     for pattern in actual_patterns:
-        values = [to_int(x) for x in re.findall(pattern, c)]
+        values = [to_shares(value, unit) for value, unit in re.findall(pattern, c)]
         if values:
             return max(values)
     before_after = re.search(
@@ -167,7 +176,12 @@ def reduction_shares(text: str, kind: str) -> int | None:
         if 0 <= after <= before:
             return before - after
     if kind == "减持计划":
-        planned = [to_int(x) for x in re.findall(r"(?:合计)?(?:计划|拟)?(?:减持)?[^。；]{0,40}?不超过\s*([\d,，]+)\s*股", c)]
+        planned = [
+            to_shares(value, unit)
+            for value, unit in re.findall(
+                r"(?:合计)?(?:计划|拟)?(?:减持)?[^。；]{0,40}?不超过\s*([\d,，]+(?:\.\d+)?)\s*(亿股|万股|股)", c
+            )
+        ]
         return max(planned) if planned else None
     return None
 
@@ -238,6 +252,8 @@ def parse_notice(meta: dict, text: str) -> list[ParsedRow]:
     shares = reduction_shares(text, kind)
     ratio = reduction_ratio(text, kind)
     period = reduction_period(text, kind)
+    period_basis = "未识别" if period == "未识别" else "绝对日期" if re.fullmatch(r"\d{4}-\d{2}-\d{2}(?:至\d{4}-\d{2}-\d{2})?", period) else "相对期间"
+    shares_basis = "未识别" if shares is None else "计划上限" if kind == "减持计划" else "实际减持"
     reason = reduction_reason(text)
     confidence = "高" if names != ["未识别"] and (shares is not None or ratio is not None) else "中" if names != ["未识别"] else "低"
     notes = []
@@ -248,8 +264,9 @@ def parse_notice(meta: dict, text: str) -> list[ParsedRow]:
     pdf_url = PDF_URL.format(art_code=meta["art_code"])
     return [ParsedRow(
         股票代码=meta["stock_code"], 简称=meta["stock_name"], 公告日期=meta["notice_date"],
-        减持股东=shareholder, 股东类型=holder_type(text), 减持股数=shares, 占总股本比例=ratio,
-        减持期间=period, 减持原因=reason, 公告原文链接=meta["detail_url"], 公告标题=title,
+        减持股东=shareholder, 股东类型=holder_type(text), 减持股数=shares, 减持股数口径=shares_basis,
+        占总股本比例=ratio, 减持期间=period, 期间口径=period_basis, 减持原因=reason,
+        公告原文链接=meta["detail_url"], 公告标题=title,
         公告类型=kind, 公告编号=meta["art_code"], PDF链接=pdf_url,
         解析置信度=confidence, 解析说明="；".join(notes) if notes else "字段完整",
     )]

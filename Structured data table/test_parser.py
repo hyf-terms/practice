@@ -27,6 +27,9 @@ class ParserTests(unittest.TestCase):
         text="持股5%以上股东。本次权益变动为信息披露义务人履行此前披露的增持计划。"
         self.assertFalse(parser.eligible(text, "关于持股比例触及1%整数倍的公告"))
     def test_shares(self): self.assertEqual(parser.reduction_shares(SAMPLE, "减持结果"), 44157600)
+    def test_share_unit_normalization(self):
+        self.assertEqual(parser.reduction_shares("减持数量 12.5万股", "减持结果"), 125000)
+        self.assertEqual(parser.reduction_shares("减持数量 0.01亿股", "减持结果"), 1000000)
     def test_ratio(self): self.assertAlmostEqual(parser.reduction_ratio(SAMPLE, "减持结果"), .01516)
     def test_period(self): self.assertEqual(parser.reduction_period(SAMPLE, "减持结果"), "2026-03-23至2026-05-28")
 
